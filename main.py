@@ -2,8 +2,8 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from telegram import Bot
-from telegram.ext import CommandHandler, Updater, JobQueue
-import time
+from telegram.ext import Application, CommandHandler, CallbackContext, JobQueue
+import logging
 
 # Thông tin bot (Sử dụng token và chat_id của bạn)
 TOKEN = "7438273610:AAEOwwV6k81kmLCpr88BS5yVAUSK0F59K7A"  # Token của bot Telegram
@@ -27,34 +27,35 @@ def check_ur_housing():
     return new_houses
 
 # Hàm gửi tin nhắn thông báo nhà mới
-def send_alert(context):
+async def send_alert(context: CallbackContext):
     houses = check_ur_housing()
     if houses:
         message = "🏠 Danh sách nhà mới UR tại Wakōshi:\n\n" + "\n".join(houses)
-        bot.send_message(chat_id=CHAT_ID, text=message)
+        await context.bot.send_message(chat_id=CHAT_ID, text=message)
     else:
-        bot.send_message(chat_id=CHAT_ID, text="Hiện tại không có nhà mới.")
+        await context.bot.send_message(chat_id=CHAT_ID, text="Hiện tại không có nhà mới.")
 
 # Hàm start bot
-def start(update, context):
-    update.message.reply_text("Chào bạn! Gõ /check để kiểm tra nhà mới.")
+async def start(update, context):
+    await update.message.reply_text("Chào bạn! Gõ /check để kiểm tra nhà mới.")
 
 # Hàm main, chạy bot
 def main():
-    # Khởi tạo updater và dispatcher
-    updater = Updater(TOKEN, use_context=True)
-    dispatcher = updater.dispatcher
-    job_queue = updater.job_queue  # Tạo job queue cho việc tự động gửi tin nhắn
+    # Khởi tạo Application mới (thay vì Updater)
+    application = Application.builder().token(TOKEN).build()
 
     # Thêm các handler
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("check", send_alert))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("check", send_alert))
+
+    # Khởi tạo JobQueue để thực hiện công việc định kỳ
+    job_queue = application.job_queue
 
     # Đặt job tự động kiểm tra nhà mới mỗi 10 phút (600 giây)
     job_queue.run_repeating(send_alert, interval=600, first=0)  # Interval 600 giây = 10 phút
 
     # Chạy bot
-    updater.start_polling()
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
