@@ -52,7 +52,33 @@ def check_vacant_rooms():
             return vacant_rooms.get_text(strip=True)
     
     return "Không tìm thấy thông tin căn hộ trống"
+import requests
+from bs4 import BeautifulSoup
 
+# URL của trang web bạn muốn lấy thông tin
+URL = "https://www.ur-net.go.jp/chintai/sp/kanto/saitama/result/?skcs=229&skcs=229&tdfk=11&todofuken=saitama"
+      # Thay thế bằng URL chính xác của trang bạn muốn kiểm tra
+
+def get_vacancy_count():
+    response = requests.get(URL)
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Kiểm tra toàn bộ HTML của trang để xem liệu có phần tử 'rep_bukken-count-room' không
+        print(soup.prettify())  # In ra HTML trang web để bạn có thể kiểm tra
+
+        vacancy_count = soup.find('strong', class_='rep_bukken-count-room')
+        
+        if vacancy_count:
+            return vacancy_count.text.strip()
+        else:
+            return "Không tìm thấy thông tin phòng trống."
+    else:
+        return "Lỗi khi truy cập trang web."
+
+# Kiểm tra hàm lấy số căn trống
+print(get_vacancy_count())
 # Kiểm tra số căn hộ trống và in ra kết quả
 vacant_rooms = check_vacant_rooms()
 print("Số căn hộ trống:", vacant_rooms)
