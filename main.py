@@ -41,11 +41,11 @@ def check_vacant_rooms():
     soup = BeautifulSoup(response.text, 'html.parser')
     
     # Tìm phần tử chứa số căn hộ trống
-    vacancy_section = soup.find("dl", class_="cassettes_property_vacancy module_boxsvertical_blue")
+    vacancy_section = soup.find("div", class_="conditionmodal_count rep_hit-row-count")
     
     if vacancy_section:
         # Tìm số căn hộ trống
-        vacant_rooms = vacancy_section.find("strong", class_="rep_bukken-count-room")
+        vacant_rooms = vacancy_section.find("strong")
         
         if vacant_rooms:
             return vacant_rooms.get_text(strip=True)
