@@ -1,33 +1,45 @@
-import os
 import requests
 from bs4 import BeautifulSoup
-from telegram import Bot
-from telegram.ext import Application, CommandHandler, CallbackContext, JobQueue
+from telegram import Update
+from telegram.ext import Application, CommandHandler
 import logging
 
-# Thông tin bot (Sử dụng token và chat_id của bạn)
-TOKEN = "7438273610:AAEOwwV6k81kmLCpr88BS5yVAUSK0F59K7A"  # Token của bot Telegram
-CHAT_ID = "5416288081"  # Chat ID của bạn
-URL = "https://www.ur-net.go.jp/chintai/sp/kanto/saitama/result/?skcs=229&skcs=229&tdfk=11&todofuken=saitama"
+# Kích hoạt logging để theo dõi lỗi
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Khởi tạo bot Telegram
-bot = Bot(token=TOKEN)
+# Cấu hình Token và Chat ID
+TOKEN = "7438273610:AAEOwwV6k81kmLCpr88BS5yVAUSK0F59K7A"
+CHAT_ID = "5416288081"
 
-# Hàm kiểm tra nhà mới
+# Hàm lấy danh sách căn hộ từ UR Wakoshi
 def check_ur_housing():
+    URL = "https://www.ur-net.go.jp/chintai/sp/kanto/saitama/result/?skcs=229&skcs=229&tdfk=11&todofuken=saitama"
     response = requests.get(URL)
     soup = BeautifulSoup(response.text, 'html.parser')
-    listings = soup.find_all("div", class_="p-search-list-item__header")
+
+    listings = soup.find_all("div", class_="p-search-list-item__header")  # Cập nhật selector nếu cần
     
     new_houses = []
     for listing in listings:
         title = listing.get_text(strip=True)
         new_houses.append(title)
-    
+
+    print(new_houses)  # In kết quả ra console để kiểm tra
     return new_houses
 
-# Hàm gửi tin nhắn thông báo nhà mới
-async def send_alert(context: CallbackContext):
+# Hàm gửi thông báo về căn hộ trống
+async def send_alert(update: Update, context):
+    houses = check_ur_housing()  # Lấy danh sách căn hộ trống
+    if houses:
+        message = "🏠 Danh sách nhà mới UR tại Wakōshi:\n\n" + "\n".join(houses)
+        await update.message.reply_text(message)
+    else:
+        await update.message.reply_text("Hiện tại không có nhà mới.")
+
+# Hàm gửi thông báo tự động qua JobQueue
+async def send_alert_job(context):
     houses = check_ur_housing()
     if houses:
         message = "🏠 Danh sách nhà mới UR tại Wakōshi:\n\n" + "\n".join(houses)
@@ -35,27 +47,19 @@ async def send_alert(context: CallbackContext):
     else:
         await context.bot.send_message(chat_id=CHAT_ID, text="Hiện tại không có nhà mới.")
 
-# Hàm start bot
-async def start(update, context):
-    await update.message.reply_text("Chào bạn! Gõ /check để kiểm tra nhà mới.")
-
-# Hàm main, chạy bot
+# Cấu hình Application và các handler
 def main():
-    # Khởi tạo Application mới (thay vì Updater)
+    # Tạo ứng dụng với bot token
     application = Application.builder().token(TOKEN).build()
 
-    # Thêm các handler
-    application.add_handler(CommandHandler("start", start))
+    # Thêm handler cho lệnh /check
     application.add_handler(CommandHandler("check", send_alert))
 
-    # Khởi tạo JobQueue để thực hiện công việc định kỳ
-    job_queue = application.job_queue
-
-    # Đặt job tự động kiểm tra nhà mới mỗi 10 phút (600 giây)
-    job_queue.run_repeating(send_alert, interval=600, first=0)  # Interval 600 giây = 10 phút
+    # Tạo JobQueue để gửi thông báo tự động mỗi 10 phút
+    application.job_queue.run_repeating(send_alert_job, interval=600, first=0)  # Interval 600 giây = 10 phút
 
     # Chạy bot
     application.run_polling()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
