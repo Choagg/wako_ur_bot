@@ -28,7 +28,34 @@ def check_ur_housing():
 
     print(new_houses)  # In kết quả ra console để kiểm tra
     return new_houses
+import requests
+from bs4 import BeautifulSoup
 
+def check_vacant_rooms():
+    # Địa chỉ URL của trang web
+    URL = "https://www.ur-net.go.jp/chintai/sp/kanto/saitama/result/?skcs=229&skcs=229&tdfk=11&todofuken=saitama"
+    
+    # Gửi yêu cầu GET để tải trang web
+    response = requests.get(URL)
+    
+    # Phân tích cú pháp HTML của trang web
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    # Tìm phần tử chứa số căn hộ trống
+    vacancy_section = soup.find("dl", class_="cassettes_property_vacancy module_boxsvertical_blue")
+    
+    if vacancy_section:
+        # Tìm số căn hộ trống
+        vacant_rooms = vacancy_section.find("strong", class_="rep_bukken-count-room")
+        
+        if vacant_rooms:
+            return vacant_rooms.get_text(strip=True)
+    
+    return "Không tìm thấy thông tin căn hộ trống"
+
+# Kiểm tra số căn hộ trống và in ra kết quả
+vacant_rooms = check_vacant_rooms()
+print("Số căn hộ trống:", vacant_rooms)
 # Hàm gửi thông báo về căn hộ trống
 async def send_alert(update: Update, context):
     houses = check_ur_housing()  # Lấy danh sách căn hộ trống
